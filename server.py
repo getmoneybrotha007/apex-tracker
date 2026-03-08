@@ -11,8 +11,16 @@ import json
 from datetime import datetime
 import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
+
+@app.route('/')
+def index():
+    return app.send_static_file('dashboard.html')
+
+@app.route('/dashboard')
+def dashboard():
+    return app.send_static_file('dashboard.html')
 
 DB_PATH = os.environ.get('DB_PATH', 'apex_trades.db')
 
