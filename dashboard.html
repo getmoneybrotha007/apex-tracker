@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APEX Intelligence Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --bg: #060810;
+  --panel: #0b0f18;
+  --card: #0f1520;
+  --border: #1c2535;
+  --green: #00ff88;
+  --red: #ff2244;
+  --yellow: #ffcc00;
+  --blue: #00ccff;
+  --purple: #aa55ff;
+  --text: #c8d0dc;
+  --dim: #5a6478;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Barlow Condensed', sans-serif;
+  min-height: 100vh;
+}
+
+/* HEADER */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 16px;
+  color: var(--green);
+  letter-spacing: 4px;
+}
+
+.server-url {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.url-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--blue);
+  padding: 6px 14px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  border-radius: 4px;
+  width: 280px;
+  outline: none;
+}
+
+.url-input:focus { border-color: var(--blue); }
+
+.connect-btn {
+  padding: 6px 16px;
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.status-dot.connected { background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.days-filter {
+  display: flex;
+  gap: 4px;
+}
+
+.day-btn {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.day-btn.active { border-color: var(--green); color: var(--green); background: rgba(0,255,136,0.08); }
+
+/* STATS */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-cell {
+  padding: 16px 20px;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.stat-cell:last-child { border-right: none; }
+
+.stat-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.stat-num {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 26px;
+}
+
+.g { color: var(--green); }
+.r { color: var(--red); }
+.y { color: var(--yellow); }
+.b { color: var(--blue); }
+.w { color: #fff; }
+.p { color: var(--purple); }
+
+/* MAIN GRID */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 1px;
+  background: var(--border);
+  padding: 1px;
+}
+
+.card {
+  background: var(--card);
+  padding: 20px;
+}
+
+.card-title {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ANALYTICS BARS */
+.analytics-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.analytics-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  color: var(--text);
+  min-width: 100px;
+}
+
+.bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s ease;
+}
+
+.analytics-pct {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  min-width: 45px;
+  text-align: right;
+}
+
+.analytics-trades {
+  font-size: 11px;
+  color: var(--dim);
+  min-width: 60px;
+  text-align: right;
+}
+
+/* TRADES TABLE */
+.trades-section {
+  grid-column: 1 / -1;
+  background: var(--card);
+  padding: 20px;
+}
+
+.trades-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.trade-filter {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.trade-filter.active { border-color: var(--blue); color: var(--blue); background: rgba(0,204,255,0.08); }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+thead th {
+  padding: 8px 14px;
+  text-align: left;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--dim);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr {
+  border-bottom: 1px solid rgba(28,37,53,0.6);
+  transition: background 0.15s;
+}
+
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+td {
+  padding: 10px 14px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.badge.buy { background: rgba(0,255,136,0.12); color: var(--green); border: 1px solid rgba(0,255,136,0.25); }
+.badge.sell { background: rgba(255,34,68,0.12); color: var(--red); border: 1px solid rgba(255,34,68,0.25); }
+.badge.win { background: rgba(0,255,136,0.08); color: var(--green); }
+.badge.loss { background: rgba(255,34,68,0.08); color: var(--red); }
+.badge.open { background: rgba(255,204,0,0.08); color: var(--yellow); }
+.badge.scratch { background: rgba(90,100,120,0.2); color: var(--dim); }
+
+/* RECOMMENDATION BOX */
+.rec-box {
+  background: rgba(0,255,136,0.05);
+  border: 1px solid rgba(0,255,136,0.2);
+  border-radius: 4px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.rec-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--green);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.rec-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.rec-metric {
+  color: var(--green);
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* OPEN TRADES */
+.open-trade {
+  background: rgba(255,204,0,0.04);
+  border: 1px solid rgba(255,204,0,0.15);
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.open-trade-info { display: flex; gap: 16px; align-items: center; }
+
+.close-trade-btn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.close-trade-btn:hover { background: rgba(255,34,68,0.1); }
+
+.exit-price-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  border-radius: 3px;
+  width: 110px;
+  outline: none;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: var(--dim);
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+
+.refresh-btn {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">APEX // INTELLIGENCE</div>
+  <div class="server-url">
+    <div class="status-dot" id="status-dot"></div>
+    <input class="url-input" id="server-url" placeholder="https://your-server.railway.app" 
+           value="">
+    <button class="connect-btn" onclick="connect()">CONNECT</button>
+  </div>
+  <div class="days-filter">
+    <button class="day-btn active" onclick="setDays(7, this)">7D</button>
+    <button class="day-btn" onclick="setDays(14, this)">14D</button>
+    <button class="day-btn" onclick="setDays(30, this)">30D</button>
+    <button class="day-btn" onclick="setDays(90, this)">90D</button>
+  </div>
+</header>
+
+<!-- STATS BAR -->
+<div class="stats-grid">
+  <div class="stat-cell"><div class="stat-label">Total Trades</div><div class="stat-num w" id="s-total">--</div></div>
+  <div class="stat-cell"><div class="stat-label">Win Rate</div><div class="stat-num g" id="s-winrate">--%</div></div>
+  <div class="stat-cell"><div class="stat-label">Total P&L</div><div class="stat-num g" id="s-pnl">$--</div></div>
+  <div class="stat-cell"><div class="stat-label">Avg P&L</div><div class="stat-num y" id="s-avg">$--</div></div>
+  <div class="stat-cell"><div class="stat-label">Wins</div><div class="stat-num g" id="s-wins">--</div></div>
+  <div class="stat-cell"><div class="stat-label">Losses</div><div class="stat-num r" id="s-losses">--</div></div>
+  <div class="stat-cell"><div class="stat-label">Open Trades</div><div class="stat-num y" id="s-open">--</div></div>
+  <div class="stat-cell"><div class="stat-label">Avg Hold</div><div class="stat-num b" id="s-hold">-- min</div></div>
+</div>
+
+<!-- ANALYTICS GRID -->
+<div class="grid">
+
+  <!-- BY INSTRUMENT -->
+  <div class="card">
+    <div class="card-title">Win Rate by Instrument <button class="refresh-btn" onclick="loadData()">↻ Refresh</button></div>
+    <div id="by-ticker">
+      <div class="no-data">Connect to server to load data</div>
+    </div>
+  </div>
+
+  <!-- BY STRATEGY -->
+  <div class="card">
+    <div class="card-title">Win Rate by Strategy</div>
+    <div id="by-strategy">
+      <div class="no-data">Connect to server to load data</div>
+    </div>
+  </div>
+
+  <!-- BY TREND -->
+  <div class="card">
+    <div class="card-title">Win Rate by Market Trend</div>
+    <div id="by-trend">
+      <div class="no-data">Connect to server to load data</div>
+    </div>
+  </div>
+
+  <!-- BY TIME OF DAY -->
+  <div class="card">
+    <div class="card-title">Win Rate by Time of Day (CT)</div>
+    <div id="by-hour">
+      <div class="no-data">Connect to server to load data</div>
+    </div>
+  </div>
+
+  <!-- AI RECOMMENDATIONS -->
+  <div class="card">
+    <div class="card-title">Bot Recommendations</div>
+    <div id="recommendations">
+      <div class="no-data">Needs 20+ trades to generate recommendations</div>
+    </div>
+  </div>
+
+  <!-- OPEN TRADES -->
+  <div class="card">
+    <div class="card-title">Open Trades</div>
+    <div id="open-trades">
+      <div class="no-data">No open trades</div>
+    </div>
+  </div>
+
+  <!-- TRADES TABLE -->
+  <div class="trades-section">
+    <div class="card-title">
+      Trade History
+      <button class="refresh-btn" onclick="loadTrades()">↻ Refresh</button>
+    </div>
+    <div class="trades-filters">
+      <button class="trade-filter active" onclick="setTradeFilter('ALL', this)">ALL</button>
+      <button class="trade-filter" onclick="setTradeFilter('WIN', this)">WINS</button>
+      <button class="trade-filter" onclick="setTradeFilter('LOSS', this)">LOSSES</button>
+      <button class="trade-filter" onclick="setTradeFilter('OPEN', this)">OPEN</button>
+      <button class="trade-filter" onclick="setTradeFilter('MNQ', this)">MNQ</button>
+      <button class="trade-filter" onclick="setTradeFilter('MES', this)">MES</button>
+      <button class="trade-filter" onclick="setTradeFilter('MGC', this)">MGC</button>
+      <button class="trade-filter" onclick="setTradeFilter('MCL', this)">MCL</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Date/Time</th><th>Symbol</th><th>Dir</th>
+            <th>Entry</th><th>Exit</th><th>Hold</th>
+            <th>P&L</th><th>Result</th><th>Strategy</th><th>Trend</th>
+          </tr>
+        </thead>
+        <tbody id="trades-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let serverUrl = localStorage.getItem('apexServerUrl') || '';
+let days = 7;
+let tradeFilter = 'ALL';
+let analytics = null;
+let allTrades = [];
+
+document.getElementById('server-url').value = serverUrl;
+
+function connect() {
+  serverUrl = document.getElementById('server-url').value.replace(/\/$/, '');
+  localStorage.setItem('apexServerUrl', serverUrl);
+  loadData();
+}
+
+function setDays(d, el) {
+  days = d;
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  loadData();
+}
+
+function setTradeFilter(f, el) {
+  tradeFilter = f;
+  document.querySelectorAll('.trade-filter').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderTrades();
+}
+
+async function loadData() {
+  if (!serverUrl) return;
+  try {
+    const [analyticsRes, tradesRes] = await Promise.all([
+      fetch(`${serverUrl}/analytics?days=${days}`),
+      fetch(`${serverUrl}/trades?days=${days}`)
+    ]);
+    analytics = await analyticsRes.json();
+    allTrades = await tradesRes.json();
+
+    document.getElementById('status-dot').className = 'status-dot connected';
+    updateStats(analytics.summary);
+    renderByTicker(analytics.by_ticker);
+    renderByStrategy(analytics.by_strategy);
+    renderByTrend(analytics.by_trend);
+    renderByHour(analytics.by_hour);
+    renderRecommendations(analytics);
+    renderOpenTrades(allTrades.filter(t => t.result === 'OPEN'));
+    renderTrades();
+  } catch(e) {
+    document.getElementById('status-dot').className = 'status-dot';
+    console.error('Connection failed:', e);
+  }
+}
+
+function updateStats(s) {
+  if (!s) return;
+  document.getElementById('s-total').textContent = s.total_trades;
+  document.getElementById('s-winrate').textContent = s.win_rate + '%';
+  document.getElementById('s-winrate').className = 'stat-num ' + (s.win_rate >= 50 ? 'g' : 'r');
+  const pnl = s.total_pnl;
+  document.getElementById('s-pnl').textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+  document.getElementById('s-pnl').className = 'stat-num ' + (pnl >= 0 ? 'g' : 'r');
+  const avg = s.avg_pnl;
+  document.getElementById('s-avg').textContent = (avg >= 0 ? '+$' : '-$') + Math.abs(avg).toFixed(2);
+  document.getElementById('s-avg').className = 'stat-num ' + (avg >= 0 ? 'g' : 'r');
+  document.getElementById('s-wins').textContent = s.wins;
+  document.getElementById('s-losses').textContent = s.losses;
+  document.getElementById('s-open').textContent = s.open_trades;
+  document.getElementById('s-hold').textContent = s.avg_hold_minutes + ' min';
+}
+
+function barColor(pct) {
+  if (pct >= 60) return 'var(--green)';
+  if (pct >= 45) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function renderAnalyticsSection(containerId, data, labelKey) {
+  const container = document.getElementById(containerId);
+  const entries = Object.entries(data).sort((a, b) => b[1].win_rate - a[1].win_rate);
+  if (!entries.length) { container.innerHTML = '<div class="no-data">No data yet</div>'; return; }
+
+  container.innerHTML = entries.map(([key, val]) => `
+    <div class="analytics-row">
+      <div class="analytics-label">${key}</div>
+      <div class="bar-wrap">
+        <div class="bar-fill" style="width:${val.win_rate}%;background:${barColor(val.win_rate)}"></div>
+      </div>
+      <div class="analytics-pct" style="color:${barColor(val.win_rate)}">${val.win_rate}%</div>
+      <div class="analytics-trades">${val.trades} trades</div>
+    </div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:10px;margin-left:110px">
+      Avg P&L: <span style="color:${val.avg_pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${val.avg_pnl >= 0 ? '+' : ''}$${Math.abs(val.avg_pnl).toFixed(2)}</span>
+    </div>
+  `).join('');
+}
+
+function renderByTicker(data) { renderAnalyticsSection('by-ticker', data); }
+function renderByStrategy(data) { renderAnalyticsSection('by-strategy', data); }
+function renderByTrend(data) { renderAnalyticsSection('by-trend', data); }
+
+function renderByHour(data) {
+  const container = document.getElementById('by-hour');
+  const entries = Object.entries(data).sort((a, b) => a[0].localeCompare(b[0]));
+  if (!entries.length) { container.innerHTML = '<div class="no-data">No data yet</div>'; return; }
+
+  // Convert UTC hours to CT (UTC-6)
+  container.innerHTML = entries.map(([hour, val]) => {
+    const utcH = parseInt(hour);
+    const ctH = (utcH - 6 + 24) % 24;
+    const label = `${ctH.toString().padStart(2,'0')}:00 CT`;
+    return `
+      <div class="analytics-row">
+        <div class="analytics-label">${label}</div>
+        <div class="bar-wrap">
+          <div class="bar-fill" style="width:${val.win_rate}%;background:${barColor(val.win_rate)}"></div>
+        </div>
+        <div class="analytics-pct" style="color:${barColor(val.win_rate)}">${val.win_rate}%</div>
+        <div class="analytics-trades">${val.trades} trades</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRecommendations(analytics) {
+  const container = document.getElementById('recommendations');
+  const s = analytics.summary;
+  if (s.total_trades < 10) {
+    container.innerHTML = `<div class="no-data">Need ${10 - s.total_trades} more trades for recommendations</div>`;
+    return;
+  }
+
+  const recs = [];
+
+  // Best instrument
+  const tickerEntries = Object.entries(analytics.by_ticker).sort((a,b) => b[1].win_rate - a[1].win_rate);
+  if (tickerEntries.length) {
+    const best = tickerEntries[0];
+    const worst = tickerEntries[tickerEntries.length - 1];
+    recs.push({
+      title: 'BEST INSTRUMENT',
+      text: `Focus on <span class="rec-metric">${best[0]}</span> — highest win rate at <span class="rec-metric">${best[1].win_rate}%</span> with avg P&L of <span class="rec-metric">$${best[1].avg_pnl.toFixed(2)}</span> per trade. Consider reducing exposure to <span class="rec-metric">${worst[0]}</span> (${worst[1].win_rate}% win rate).`
+    });
+  }
+
+  // Best strategy
+  const stratEntries = Object.entries(analytics.by_strategy).sort((a,b) => b[1].win_rate - a[1].win_rate);
+  if (stratEntries.length > 1) {
+    const best = stratEntries[0];
+    const worst = stratEntries[stratEntries.length - 1];
+    recs.push({
+      title: 'TOP STRATEGY',
+      text: `<span class="rec-metric">${best[0]}</span> is your best performer at <span class="rec-metric">${best[1].win_rate}%</span> win rate. Consider disabling <span class="rec-metric">${worst[0]}</span> which is only winning <span class="rec-metric">${worst[1].win_rate}%</span> of the time.`
+    });
+  }
+
+  // Best time
+  const hourEntries = Object.entries(analytics.by_hour).sort((a,b) => b[1].win_rate - a[1].win_rate);
+  if (hourEntries.length) {
+    const best = hourEntries[0];
+    const utcH = parseInt(best[0]);
+    const ctH = (utcH - 6 + 24) % 24;
+    recs.push({
+      title: 'BEST TIME TO TRADE',
+      text: `Your highest win rate is at <span class="rec-metric">${ctH}:00 CT</span> with <span class="rec-metric">${best[1].win_rate}%</span> win rate. Prioritize being at your desk during this window.`
+    });
+  }
+
+  // Trend recommendation
+  const trendEntries = Object.entries(analytics.by_trend).sort((a,b) => b[1].win_rate - a[1].win_rate);
+  if (trendEntries.length > 1) {
+    const best = trendEntries[0];
+    recs.push({
+      title: 'TREND FILTER',
+      text: `You perform better in <span class="rec-metric">${best[0]}</span> market conditions at <span class="rec-metric">${best[1].win_rate}%</span> win rate. Adjust position size accordingly.`
+    });
+  }
+
+  container.innerHTML = recs.map(r => `
+    <div class="rec-box">
+      <div class="rec-title">${r.title}</div>
+      <div class="rec-text">${r.text}</div>
+    </div>
+  `).join('');
+}
+
+function renderOpenTrades(openTrades) {
+  const container = document.getElementById('open-trades');
+  if (!openTrades.length) { container.innerHTML = '<div class="no-data">No open trades</div>'; return; }
+
+  container.innerHTML = openTrades.map(t => `
+    <div class="open-trade">
+      <div class="open-trade-info">
+        <span class="badge ${t.direction.toLowerCase()}">${t.direction}</span>
+        <span style="color:var(--blue);font-family:'Share Tech Mono',monospace">${t.ticker}</span>
+        <span style="font-family:'Share Tech Mono',monospace">@ ${t.entry_price}</span>
+        <span style="color:var(--dim);font-size:11px">${t.strategy}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="exit-price-input" id="exit-${t.id}" placeholder="Exit price">
+        <button class="close-trade-btn" onclick="closeTrade(${t.id})">CLOSE</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function closeTrade(id) {
+  const exitPrice = parseFloat(document.getElementById(`exit-${id}`).value);
+  if (!exitPrice) { alert('Enter exit price'); return; }
+  await fetch(`${serverUrl}/update_trade/${id}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ exit_price: exitPrice })
+  });
+  loadData();
+}
+
+function renderTrades() {
+  const body = document.getElementById('trades-body');
+  let filtered = allTrades;
+  if (tradeFilter !== 'ALL') {
+    if (['WIN','LOSS','OPEN'].includes(tradeFilter)) {
+      filtered = allTrades.filter(t => t.result === tradeFilter);
+    } else {
+      filtered = allTrades.filter(t => t.ticker && t.ticker.includes(tradeFilter));
+    }
+  }
+
+  if (!filtered.length) { body.innerHTML = `<tr><td colspan="11" class="no-data">No trades found</td></tr>`; return; }
+
+  body.innerHTML = filtered.map((t, i) => {
+    const pnl = t.pnl;
+    const pnlStr = pnl != null ? (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2) : '--';
+    const pnlClass = pnl != null ? (pnl >= 0 ? 'g' : 'r') : '';
+    const dt = t.entry_time ? new Date(t.entry_time + 'Z') : null;
+    const dateStr = dt ? dt.toLocaleDateString() : '--';
+    const timeStr = dt ? dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '--';
+    const hold = t.hold_minutes ? Math.round(t.hold_minutes) + 'm' : '--';
+    return `
+      <tr>
+        <td style="color:var(--dim)">${filtered.length - i}</td>
+        <td>${dateStr}<br><span style="color:var(--dim);font-size:10px">${timeStr} CT</span></td>
+        <td style="color:var(--blue);font-weight:700">${t.ticker || '--'}</td>
+        <td><span class="badge ${(t.direction||'').toLowerCase()}">${t.direction || '--'}</span></td>
+        <td>${t.entry_price ? t.entry_price.toFixed(2) : '--'}</td>
+        <td>${t.exit_price ? t.exit_price.toFixed(2) : '--'}</td>
+        <td style="color:var(--dim)">${hold}</td>
+        <td class="${pnlClass}" style="font-weight:700">${pnlStr}</td>
+        <td><span class="badge ${(t.result||'open').toLowerCase()}">${t.result || 'OPEN'}</span></td>
+        <td style="color:var(--dim);font-size:11px">${t.strategy || '--'}</td>
+        <td style="color:${t.entry_trend === 'BULL' ? 'var(--green)' : 'var(--red)'};font-size:11px">${t.entry_trend || '--'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Auto refresh every 30 seconds
+if (serverUrl) { loadData(); }
+setInterval(() => { if (serverUrl) loadData(); }, 30000);
+</script>
+</body>
+</html>
