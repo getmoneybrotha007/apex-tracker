@@ -370,6 +370,32 @@ def get_alerts():
     conn.close()
     return jsonify(alerts)
 
+@app.route('/delete_trade/<int:trade_id>', methods=['DELETE', 'POST'])
+def delete_trade(trade_id):
+    conn = get_db()
+    conn.execute('DELETE FROM trades WHERE id = ?', (trade_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok', 'deleted': trade_id})
+
+@app.route('/clear_open_trades', methods=['DELETE', 'POST'])
+def clear_open_trades():
+    conn = get_db()
+    count = conn.execute("SELECT COUNT(*) FROM trades WHERE result = 'OPEN'").fetchone()[0]
+    conn.execute("DELETE FROM trades WHERE result = 'OPEN'")
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok', 'cleared': count})
+
+@app.route('/clear_all_trades', methods=['DELETE', 'POST'])
+def clear_all_trades():
+    conn = get_db()
+    conn.execute('DELETE FROM trades')
+    conn.execute('DELETE FROM alerts')
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok', 'message': 'All trades and alerts cleared'})
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'running', 'time': datetime.utcnow().isoformat()})
