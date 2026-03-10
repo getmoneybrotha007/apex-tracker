@@ -93,18 +93,43 @@ def get_point_value(ticker):
 
 def parse_tradingview_alert(body):
     """Parse TradingView webhook payload"""
+    import re
     try:
         # Try JSON first
         if isinstance(body, dict):
-            return body
-        data = json.loads(body)
+            data = body
+        else:
+            text = body if isinstance(body, str) else body.decode('utf-8')
+            # Strip any wrapping whitespace or BOM
+            text = text.strip().lstrip('\ufeff')
+            data = json.loads(text)
+
+        # Ensure price is always a float, never 0 from missing key
+        for price_key in ['price', 'close']:
+            if price_key in data:
+                try:
+                    val = float(str(data[price_key]).replace(',', ''))
+                    if val > 0:
+                        data['price'] = val
+                        break
+                except:
+                    pass
+
+        # Parse stop and target if present
+        for key in ['stop', 'target']:
+            if key in data:
+                try:
+                    data[key] = float(str(data[key]).replace(',', ''))
+                except:
+                    pass
+
         return data
+
     except:
-        # Parse text format
+        # Fallback: parse plain text format
         result = {}
         text = body if isinstance(body, str) else body.decode('utf-8')
-        
-        # Extract fields from message
+
         if 'BUY' in text.upper():
             result['action'] = 'BUY'
         elif 'SELL' in text.upper():
@@ -114,16 +139,19 @@ def parse_tradingview_alert(body):
         elif 'CLOSED' in text.upper():
             result['action'] = 'CLOSED'
 
-        # Extract ticker
-        import re
         ticker_match = re.search(r'\b(MNQ|MES|MGC|MCL|M2K|MBT)\w*', text, re.IGNORECASE)
         if ticker_match:
             result['ticker'] = ticker_match.group(0).upper()
 
-        # Extract price
-        price_match = re.search(r'Entry[:\s]+([0-9,.]+)', text, re.IGNORECASE)
-        if price_match:
-            result['price'] = float(price_match.group(1).replace(',', ''))
+        # Try multiple price patterns
+        for pattern in [r'"price"\s*:\s*([0-9.]+)', r'@\s*([0-9.]+)', r'price[:\s]+([0-9,.]+)']:
+            price_match = re.search(pattern, text, re.IGNORECASE)
+            if price_match:
+                try:
+                    result['price'] = float(price_match.group(1).replace(',', ''))
+                    break
+                except:
+                    pass
 
         return result
 
@@ -172,14 +200,16 @@ def receive_webhook():
         if action in ['BUY', 'SELL']:
             conn.execute('''
                 INSERT INTO trades 
-                (entry_alert_id, ticker, direction, entry_price, entry_time, 
+                (entry_alert_id, ticker, direction, entry_price, stop_price, target_price, entry_time, 
                  result, strategy, timeframe, entry_trend, entry_rsi, entry_atr, contracts)
-                VALUES (?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, 1)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, 1)
             ''', (
                 alert_id,
                 ticker,
                 action,
                 price,
+                data.get('stop', None),
+                data.get('target', None),
                 datetime.utcnow().isoformat(),
                 data.get('strategy', ''),
                 data.get('timeframe', ''),
@@ -408,3 +438,42 @@ if __name__ == '__main__':
 # This ensures DB is initialized when gunicorn imports the module
 with app.app_context():
     init_db()
+
+@app.route('/test_trade', methods=['GET'])
+def test_trade():
+    """Send a fake BUY then WIN to verify P&L calculation"""
+    action = request.args.get('action', 'BUY')
+    ticker = request.args.get('ticker', 'MNQ1!')
+    price  = float(request.args.get('price', 21500))
+    result = request.args.get('result', '')
+
+    conn = get_db()
+    cursor = conn.execute('''
+        INSERT INTO alerts (received_at, ticker, action, price, raw_message)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (datetime.utcnow().isoformat(), ticker, action, price, str({'action':action,'ticker':ticker,'price':price})))
+    alert_id = cursor.lastrowid
+
+    if action in ['BUY', 'SELL']:
+        conn.execute('''
+            INSERT INTO trades (entry_alert_id, ticker, direction, entry_price, entry_time, result, contracts)
+            VALUES (?, ?, ?, ?, ?, 'OPEN', 1)
+        ''', (alert_id, ticker, action, price, datetime.utcnow().isoformat()))
+
+    elif action == 'CLOSED':
+        open_trade = conn.execute('''
+            SELECT * FROM trades WHERE ticker = ? AND result = 'OPEN'
+            ORDER BY entry_time DESC LIMIT 1
+        ''', (ticker,)).fetchone()
+        if open_trade:
+            point_value = get_point_value(ticker)
+            pnl = (price - open_trade['entry_price']) * point_value if open_trade['direction'] == 'BUY' else (open_trade['entry_price'] - price) * point_value
+            res = result if result else ('WIN' if pnl > 0 else 'LOSS')
+            conn.execute('''
+                UPDATE trades SET exit_price=?, exit_time=?, pnl=?, result=?, hold_minutes=1
+                WHERE id=?
+            ''', (price, datetime.utcnow().isoformat(), pnl, res, open_trade['id']))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok', 'action': action, 'ticker': ticker, 'price': price})
