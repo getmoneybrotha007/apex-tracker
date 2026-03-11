@@ -104,7 +104,20 @@ def parse_tradingview_alert(body):
             text = text.strip().lstrip('\ufeff')
             data = json.loads(text)
 
-        # Ensure price is always a float, never 0 from missing key
+        # Fix corrupted ticker — extract real symbol from settlement-as-close format
+        # e.g. "={"settlement-as-close":true,"symbol":"CME_MINI:MNQ1!"}" -> "MNQ1"
+        import re as _re
+        ticker = data.get('ticker', '')
+        if 'settlement-as-close' in str(ticker) or 'symbol' in str(ticker):
+            sym_match = _re.search(r'"symbol"\s*:\s*"([^"]+)"', str(ticker))
+            if sym_match:
+                full_sym = sym_match.group(1)
+                # Extract just the instrument name e.g. MNQ1! from CME_MINI:MNQ1!
+                inst_match = _re.search(r'(MNQ|MES|MGC|MCL|M2K|MBT)\w*', full_sym)
+                if inst_match:
+                    data['ticker'] = inst_match.group(0)
+
+        # Ensure all numeric fields are properly parsed
         for price_key in ['price', 'close']:
             if price_key in data:
                 try:
@@ -115,8 +128,7 @@ def parse_tradingview_alert(body):
                 except:
                     pass
 
-        # Parse stop and target if present
-        for key in ['stop', 'target']:
+        for key in ['stop', 'target', 'atr', 'adx', 'rsi', 'vol_ratio']:
             if key in data:
                 try:
                     data[key] = float(str(data[key]).replace(',', ''))
@@ -158,18 +170,34 @@ def parse_tradingview_alert(body):
 @app.route('/webhook', methods=['POST'])
 def receive_webhook():
     """Main webhook endpoint for TradingView alerts"""
+    import re as _re
     try:
         raw = request.get_data(as_text=True)
-        
-        # Try to parse JSON body
-        try:
-            data = request.get_json(force=True) or {}
-        except:
-            data = {}
 
-        # Also parse the raw message
+        # Parse raw body first — most reliable
         parsed = parse_tradingview_alert(raw)
-        data.update(parsed)
+
+        # Flask JSON parser as backup
+        try:
+            flask_data = request.get_json(force=True) or {}
+        except:
+            flask_data = {}
+
+        # Merge — parsed raw takes priority
+        data = {**flask_data, **parsed}
+
+        # Last resort price extraction directly from raw string
+        raw_price = data.get('price', 0)
+        try:
+            raw_price = float(raw_price)
+        except:
+            raw_price = 0
+        if raw_price <= 1:
+            pm = _re.search(r'"price"\s*:\s*([0-9]+\.?[0-9]*)', raw)
+            if pm:
+                extracted = float(pm.group(1))
+                if extracted > 1:
+                    data['price'] = extracted
 
         # Store raw alert
         conn = get_db()
@@ -194,7 +222,13 @@ def receive_webhook():
 
         action = data.get('action', '').upper()
         ticker = data.get('ticker', data.get('symbol', ''))
-        price = float(data.get('price', data.get('close', 0)) or 0)
+        price  = float(data.get('price', 0) or 0)
+        atr    = float(data.get('atr',   0) or 0)
+        rsi    = float(data.get('rsi',   0) or 0)
+        stop   = data.get('stop',   None)
+        target = data.get('target', None)
+        trend  = data.get('trend',  '')
+        tf     = data.get('timeframe', '')
 
         # Handle BUY/SELL — create new open trade
         if action in ['BUY', 'SELL']:
@@ -208,14 +242,14 @@ def receive_webhook():
                 ticker,
                 action,
                 price,
-                data.get('stop', None),
-                data.get('target', None),
+                stop,
+                target,
                 datetime.utcnow().isoformat(),
                 data.get('strategy', ''),
-                data.get('timeframe', ''),
-                data.get('trend', ''),
-                data.get('rsi', 0),
-                data.get('atr', 0)
+                tf,
+                trend,
+                rsi,
+                atr
             ))
 
         # Handle EXIT/CLOSED — close the open trade
@@ -380,7 +414,7 @@ def update_trade(trade_id):
     conn = get_db()
     fields = []
     values = []
-    for field in ['stop_price', 'target_price', 'contracts', 'notes', 'result', 'exit_price']:
+    for field in ['stop_price', 'target_price', 'contracts', 'notes', 'result', 'exit_price', 'pnl']:
         if field in data:
             fields.append(f'{field} = ?')
             values.append(data[field])
