@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APEX // SIGNAL DIAL</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;600;700&display=swap');
+
+  :root {
+    --bg:     #050508;
+    --bg2:    #08080e;
+    --bg3:    #0d0d16;
+    --border: #141428;
+    --red:    #ff2244;
+    --yellow: #ffd700;
+    --green:  #00ff88;
+    --bright: #00ffcc;
+    --purple: #9d4edd;
+    --gray:   #333355;
+    --text:   #ccd6f6;
+    --dim:    #445566;
+    --mono:   'Share Tech Mono', monospace;
+    --main:   'Rajdhani', sans-serif;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--main);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* HEADER */
+  .hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 16px;
+    color: var(--bright);
+    letter-spacing: 4px;
+  }
+  .logo em { color: var(--dim); font-style: normal; }
+
+  .hdr-right {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+    margin-right: 6px;
+    animation: blink 2s infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* LAYOUT */
+  .wrap {
+    display: grid;
+    grid-template-columns: 380px 1fr 260px;
+    grid-template-rows: auto auto;
+    gap: 1px;
+    background: var(--border);
+    min-height: calc(100vh - 49px);
+  }
+
+  .panel {
+    background: var(--bg2);
+    padding: 24px;
+  }
+
+  .panel-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    margin-bottom: 20px;
+  }
+
+  /* DIAL PANEL */
+  .dial-panel {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .dial-container {
+    position: relative;
+    width: 300px;
+    height: 165px;
+    margin: 0 auto;
+  }
+
+  #dial-svg { width: 100%; height: 100%; overflow: visible; }
+
+  .score-display {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .score-num {
+    font-family: var(--mono);
+    font-size: 48px;
+    line-height: 1;
+    color: var(--dim);
+    transition: color 0.6s ease;
+  }
+
+  .score-lbl {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    margin-top: 2px;
+  }
+
+  .verdict {
+    margin-top: 44px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    color: var(--dim);
+    transition: color 0.5s;
+    text-align: center;
+  }
+
+  .verdict-sub {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--dim);
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  /* SIGNAL TICKER */
+  .signal-ticker {
+    margin-top: 24px;
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 14px;
+  }
+
+  .ticker-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .ticker-row:last-child { margin-bottom: 0; }
+
+  .ticker-key {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--dim);
+  }
+
+  .ticker-val {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    transition: color 0.3s;
+  }
+
+  /* STATUS BAR */
+  .status-bar {
+    width: 100%;
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .status-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+  }
+
+  .status-card-lbl {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+
+  .status-card-val {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    transition: color 0.3s;
+  }
+
+  /* FACTORS PANEL */
+  .factors-panel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .factor-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .factor-row {
+    display: grid;
+    grid-template-columns: 150px 1fr 56px;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .factor-name {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  .factor-track {
+    height: 3px;
+    background: var(--bg3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .factor-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--gray);
+    width: 0%;
+    transition: width 0.7s cubic-bezier(0.4,0,0.2,1), background 0.5s;
+  }
+
+  .factor-pts {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-align: right;
+    color: var(--dim);
+    transition: color 0.3s;
+  }
+
+  /* SESSION HISTORY */
+  .history-panel {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .sig-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 10px;
+  }
+
+  .sig-table th {
+    color: var(--dim);
+    letter-spacing: 1px;
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  .sig-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(20,20,40,0.8);
+  }
+
+  .sig-table tr:hover td { background: rgba(255,255,255,0.015); }
+
+  /* STATS PANEL */
+  .stats-panel {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    padding: 0;
+  }
+
+  .stat-block {
+    background: var(--bg2);
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-lbl {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    margin-bottom: 6px;
+  }
+
+  .stat-val {
+    font-family: var(--mono);
+    font-size: 24px;
+    color: var(--text);
+    transition: color 0.3s;
+  }
+
+  .stat-sub {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--dim);
+    margin-top: 2px;
+  }
+
+  /* INSTRUMENT TABS */
+  .inst-tabs {
+    display: flex;
+    gap: 1px;
+    background: var(--border);
+    margin-bottom: 1px;
+  }
+
+  .inst-tab {
+    flex: 1;
+    padding: 10px;
+    background: var(--bg3);
+    border: none;
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .inst-tab:hover { color: var(--text); background: var(--bg2); }
+  .inst-tab.active { background: var(--bg2); color: var(--bright); border-bottom: 2px solid var(--bright); }
+  .inst-tab.mcl { color: var(--red) !important; opacity: 0.6; }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+  .bg { background:rgba(0,255,136,0.08); color:var(--green); border:1px solid rgba(0,255,136,0.15); }
+  .by { background:rgba(255,215,0,0.08); color:var(--yellow); border:1px solid rgba(255,215,0,0.15); }
+  .br { background:rgba(255,34,68,0.08); color:var(--red); border:1px solid rgba(255,34,68,0.15); }
+
+  /* Pulse on new signal */
+  @keyframes signalPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(0,255,204,0.4); }
+    70%  { box-shadow: 0 0 0 16px rgba(0,255,204,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,255,204,0); }
+  }
+  .pulse { animation: signalPulse 1s ease-out; }
+
+  /* Refresh indicator */
+  .refresh-bar {
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .refresh-progress {
+    height: 100%;
+    background: var(--bright);
+    width: 0%;
+    transition: width linear;
+  }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">APEX <em>//</em> SIGNAL DIAL</div>
+  <div class="hdr-right">
+    <span><span class="live-dot"></span>LIVE</span>
+    <span id="clock">--:--:-- CT</span>
+    <span id="session-hdr" style="color:var(--dim)">--</span>
+    <span id="last-refresh" style="color:var(--dim)">--</span>
+  </div>
+</div>
+
+<div class="refresh-bar"><div class="refresh-progress" id="refresh-bar"></div></div>
+
+<div class="wrap">
+
+  <!-- DIAL -->
+  <div class="panel dial-panel">
+    <div class="panel-label">// SIGNAL CONFIDENCE</div>
+
+    <div class="dial-container" id="dial-container">
+      <svg id="dial-svg" viewBox="0 0 300 160">
+        <!-- BG arc -->
+        <path d="M 18 150 A 132 132 0 0 1 282 150" fill="none" stroke="#141428" stroke-width="14" stroke-linecap="round"/>
+        <!-- Zone arcs -->
+        <path d="M 18 150 A 132 132 0 0 1 82 40"    fill="none" stroke="rgba(255,34,68,0.2)"  stroke-width="14" stroke-linecap="round"/>
+        <path d="M 82 40  A 132 132 0 0 1 218 40"   fill="none" stroke="rgba(255,215,0,0.2)"  stroke-width="14" stroke-linecap="round"/>
+        <path d="M 218 40 A 132 132 0 0 1 282 150"  fill="none" stroke="rgba(0,255,136,0.2)"  stroke-width="14" stroke-linecap="round"/>
+        <!-- Progress arc -->
+        <path id="dial-arc" d="M 18 150 A 132 132 0 0 1 18 150" fill="none" stroke="var(--gray)" stroke-width="14" stroke-linecap="round" style="transition:all 0.8s cubic-bezier(0.4,0,0.2,1)"/>
+        <!-- Needle -->
+        <line id="needle" x1="150" y1="150" x2="150" y2="26" stroke="#fff" stroke-width="2" stroke-linecap="round" style="transform-origin:150px 150px;transform:rotate(-90deg);transition:transform 0.8s cubic-bezier(0.4,0,0.2,1)"/>
+        <circle cx="150" cy="150" r="5" fill="#fff"/>
+        <!-- Labels -->
+        <text x="24" y="165" fill="rgba(255,34,68,0.5)" font-family="Share Tech Mono" font-size="8">SKIP</text>
+        <text x="135" y="16" fill="rgba(255,215,0,0.5)" font-family="Share Tech Mono" font-size="8" text-anchor="middle">CAUTION</text>
+        <text x="258" y="165" fill="rgba(0,255,136,0.5)" font-family="Share Tech Mono" font-size="8" text-anchor="end">TAKE</text>
+      </svg>
+
+      <div class="score-display">
+        <div class="score-num" id="score-num">--</div>
+        <div class="score-lbl">/ 100</div>
+      </div>
+    </div>
+
+    <div class="verdict" id="verdict">NO SIGNAL</div>
+    <div class="verdict-sub" id="verdict-sub">Waiting for webhook data...</div>
+
+    <!-- Live signal data -->
+    <div class="signal-ticker" id="signal-ticker">
+      <div class="ticker-row">
+        <span class="ticker-key">INSTRUMENT</span>
+        <span class="ticker-val" id="tk-ticker" style="color:var(--bright)">--</span>
+      </div>
+      <div class="ticker-row">
+        <span class="ticker-key">DIRECTION</span>
+        <span class="ticker-val" id="tk-direction">--</span>
+      </div>
+      <div class="ticker-row">
+        <span class="ticker-key">ENTRY PRICE</span>
+        <span class="ticker-val" id="tk-price">--</span>
+      </div>
+      <div class="ticker-row">
+        <span class="ticker-key">STOP</span>
+        <span class="ticker-val" id="tk-stop" style="color:var(--red)">--</span>
+      </div>
+      <div class="ticker-row">
+        <span class="ticker-key">TARGET</span>
+        <span class="ticker-val" id="tk-target" style="color:var(--green)">--</span>
+      </div>
+      <div class="ticker-row">
+        <span class="ticker-key">BREAKEVEN AT</span>
+        <span class="ticker-val" id="tk-be" style="color:var(--yellow)">--</span>
+      </div>
+      <div class="ticker-row">
+        <span class="ticker-key">PARTIAL AT</span>
+        <span class="ticker-val" id="tk-partial" style="color:var(--bright)">--</span>
+      </div>
+      <div class="ticker-row">
+        <span class="ticker-key">RECEIVED</span>
+        <span class="ticker-val" id="tk-time" style="color:var(--dim)">--</span>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-card">
+        <div class="status-card-lbl">SESSION</div>
+        <div class="status-card-val" id="sc-session">--</div>
+      </div>
+      <div class="status-card">
+        <div class="status-card-lbl">ADX</div>
+        <div class="status-card-val" id="sc-adx">--</div>
+      </div>
+      <div class="status-card">
+        <div class="status-card-lbl">VOL RATIO</div>
+        <div class="status-card-val" id="sc-vol">--</div>
+      </div>
+      <div class="status-card">
+        <div class="status-card-lbl">TREND</div>
+        <div class="status-card-val" id="sc-trend">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FACTORS -->
+  <div class="panel factors-panel">
+    <div class="panel-label">// SCORE BREAKDOWN</div>
+    <div class="factor-list">
+      <div class="factor-row">
+        <div class="factor-name">HTF TREND</div>
+        <div class="factor-track"><div class="factor-fill" id="f-htf"></div></div>
+        <div class="factor-pts" id="p-htf">+0</div>
+      </div>
+      <div class="factor-row">
+        <div class="factor-name">ADX STRENGTH</div>
+        <div class="factor-track"><div class="factor-fill" id="f-adx"></div></div>
+        <div class="factor-pts" id="p-adx">+0</div>
+      </div>
+      <div class="factor-row">
+        <div class="factor-name">VOLUME RATIO</div>
+        <div class="factor-track"><div class="factor-fill" id="f-vol"></div></div>
+        <div class="factor-pts" id="p-vol">+0</div>
+      </div>
+      <div class="factor-row">
+        <div class="factor-name">VWAP ZONE</div>
+        <div class="factor-track"><div class="factor-fill" id="f-vwap"></div></div>
+        <div class="factor-pts" id="p-vwap">+0</div>
+      </div>
+      <div class="factor-row">
+        <div class="factor-name">SESSION QUALITY</div>
+        <div class="factor-track"><div class="factor-fill" id="f-sess"></div></div>
+        <div class="factor-pts" id="p-sess">+0</div>
+      </div>
+      <div class="factor-row">
+        <div class="factor-name">LIQ SWEEP BONUS</div>
+        <div class="factor-track"><div class="factor-fill" id="f-sweep"></div></div>
+        <div class="factor-pts" id="p-sweep">+0</div>
+      </div>
+    </div>
+
+    <!-- Instrument performance from live data -->
+    <div style="margin-top:28px;">
+      <div class="panel-label">// INSTRUMENT WIN RATES (LIVE)</div>
+      <div class="inst-tabs">
+        <button class="inst-tab active" onclick="filterHistory('ALL')" id="tab-ALL">ALL</button>
+        <button class="inst-tab" onclick="filterHistory('MES')" id="tab-MES">MES</button>
+        <button class="inst-tab" onclick="filterHistory('MNQ')" id="tab-MNQ">MNQ</button>
+        <button class="inst-tab" onclick="filterHistory('MGC')" id="tab-MGC">MGC</button>
+        <button class="inst-tab mcl" onclick="filterHistory('MCL')" id="tab-MCL">MCL</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:1px; background:var(--border); margin-top:1px;" id="inst-stats">
+        <div style="background:var(--bg2); padding:12px; text-align:center;">
+          <div style="font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px;margin-bottom:4px;">MES WIN%</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--green)" id="stat-mes">--</div>
+        </div>
+        <div style="background:var(--bg2); padding:12px; text-align:center;">
+          <div style="font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px;margin-bottom:4px;">MNQ WIN%</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--green)" id="stat-mnq">--</div>
+        </div>
+        <div style="background:var(--bg2); padding:12px; text-align:center;">
+          <div style="font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px;margin-bottom:4px;">MGC WIN%</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--green)" id="stat-mgc">--</div>
+        </div>
+        <div style="background:var(--bg2); padding:12px; text-align:center;">
+          <div style="font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px;margin-bottom:4px;">MCL WIN%</div>
+          <div style="font-family:var(--mono);font-size:18px;color:var(--red)" id="stat-mcl">--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="panel history-panel">
+    <div class="panel-label">// RECENT SIGNALS</div>
+    <table class="sig-table">
+      <thead>
+        <tr>
+          <th>TIME CT</th>
+          <th>TICK</th>
+          <th>DIR</th>
+          <th>SCORE</th>
+          <th>ADX</th>
+          <th>VOL</th>
+          <th>RESULT</th>
+        </tr>
+      </thead>
+      <tbody id="history-body">
+        <tr><td colspan="7" style="color:var(--dim);padding:16px;text-align:center;">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- STATS PANEL -->
+  <div class="stats-panel">
+    <div class="stat-block">
+      <div class="stat-lbl">OVERALL WIN RATE</div>
+      <div class="stat-val" id="wr-overall" style="color:var(--green)">--</div>
+      <div class="stat-sub" id="wr-sub">-- trades</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-lbl">TOTAL P&L</div>
+      <div class="stat-val" id="pnl-total">--</div>
+      <div class="stat-sub" id="pnl-sub">-- avg per trade</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-lbl">CURRENT SESSION</div>
+      <div class="stat-val" id="sess-now" style="color:var(--dim)">--</div>
+      <div class="stat-sub" id="sess-hist">-- hist win rate</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-lbl">OPEN TRADES</div>
+      <div class="stat-val" id="open-trades" style="color:var(--yellow)">--</div>
+      <div class="stat-sub">ACROSS ALL INSTRUMENTS</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-lbl">LAST SIGNAL SCORE</div>
+      <div class="stat-val" id="last-score" style="color:var(--dim)">--</div>
+      <div class="stat-sub" id="last-score-sub">--</div>
+    </div>
+    <div class="stat-block" style="flex:1; display:flex; flex-direction:column; justify-content:flex-end;">
+      <div class="stat-lbl">SERVER</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--dim);word-break:break-all;" id="server-url">--</div>
+      <div style="margin-top:8px;">
+        <button onclick="promptServer()" style="background:transparent;border:1px solid var(--border);color:var(--dim);font-family:var(--mono);font-size:9px;letter-spacing:2px;padding:6px 10px;cursor:pointer;width:100%;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--bright)';this.style.color='var(--bright)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--dim)'">CHANGE SERVER</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── CONFIG ───────────────────────────────────────────────────────────────────
+  let SERVER = localStorage.getItem('apex_server') || 'https://apex-tracker-production.up.railway.app'
+  let REFRESH_INTERVAL = 5000 // 5 seconds
+  let allHistory = []
+  let currentFilter = 'ALL'
+  let lastSignalId = null
+
+  document.getElementById('server-url').textContent = SERVER
+
+  function promptServer() {
+    const url = prompt('Enter your Railway server URL:', SERVER)
+    if (url) {
+      SERVER = url.trim().replace(/\/$/, '')
+      localStorage.setItem('apex_server', SERVER)
+      document.getElementById('server-url').textContent = SERVER
+      fetchAll()
+    }
+  }
+
+  // ── CLOCK ────────────────────────────────────────────────────────────────────
+  function updateClock() {
+    const now = new Date()
+    const ct  = now.toLocaleTimeString('en-US', { hour12:false, timeZone:'America/Chicago' })
+    const h   = parseInt(ct.split(':')[0])
+    const m   = parseInt(ct.split(':')[1])
+    const t   = h * 100 + m
+
+    document.getElementById('clock').textContent = ct + ' CT'
+
+    let sessLabel, sessColor, sessHist
+    if (h === 6) {
+      sessLabel = 'LONDON OPEN'; sessColor = 'var(--green)'; sessHist = '88.9% HIST WIN'
+    } else if (t >= 930 && t <= 1600) {
+      sessLabel = 'NY SESSION';   sessColor = 'var(--green)'; sessHist = '66.7% HIST WIN'
+    } else {
+      sessLabel = 'BLOCKED';      sessColor = 'var(--red)';   sessHist = '0-25% HIST WIN'
+    }
+
+    document.getElementById('session-hdr').textContent = sessLabel
+    document.getElementById('session-hdr').style.color = sessColor
+    document.getElementById('sess-now').textContent    = sessLabel
+    document.getElementById('sess-now').style.color    = sessColor
+    document.getElementById('sess-hist').textContent   = sessHist
+  }
+
+  // ── DIAL UPDATE ───────────────────────────────────────────────────────────────
+  function updateDial(score, ticker, action) {
+    score = Math.max(0, Math.min(100, score || 0))
+
+    const numEl = document.getElementById('score-num')
+    numEl.textContent = score
+
+    // Color
+    const color = score >= 85 ? 'var(--bright)' : score >= 70 ? 'var(--green)' : score >= 50 ? 'var(--yellow)' : 'var(--dim)'
+    numEl.style.color = color
+
+    // Needle
+    const angle = (score / 100 * 180) - 90
+    document.getElementById('needle').style.transform = `rotate(${angle}deg)`
+
+    // Arc
+    const r = 132, cx = 150, cy = 150
+    const sa = Math.PI
+    const ea = sa + (score / 100 * Math.PI)
+    const x1 = cx + r * Math.cos(sa), y1 = cy + r * Math.sin(sa)
+    const x2 = cx + r * Math.cos(ea), y2 = cy + r * Math.sin(ea)
+    const la = score > 50 ? 1 : 0
+    const arcStroke = score >= 70 ? '#00ff88' : score >= 50 ? '#ffd700' : '#ff2244'
+    const arcEl = document.getElementById('dial-arc')
+    arcEl.setAttribute('d', `M ${x1} ${y1} A ${r} ${r} 0 ${la} 1 ${x2} ${y2}`)
+    arcEl.setAttribute('stroke', arcStroke)
+
+    // Verdict
+    let verdict, sub
+    if (!ticker || ticker === '--') {
+      verdict = 'NO SIGNAL'; sub = 'Waiting for webhook data...'
+    } else if (ticker.includes('MCL')) {
+      verdict = 'MANUAL ONLY'; sub = 'MCL — Execute manually, bot disabled'
+    } else if (score >= 85) {
+      verdict = 'HIGH CONVICTION'; sub = (action || '--') + ' — Full size · All filters aligned'
+    } else if (score >= 70) {
+      verdict = 'TAKE THE TRADE'; sub = (action || '--') + ' — Standard size · Conditions met'
+    } else if (score >= 50) {
+      verdict = 'USE CAUTION'; sub = (action || '--') + ' — Reduce size · Weak conditions'
+    } else {
+      verdict = 'SKIP SIGNAL'; sub = 'Score too low · Wait for better setup'
+    }
+
+    document.getElementById('verdict').textContent     = verdict
+    document.getElementById('verdict').style.color     = color
+    document.getElementById('verdict-sub').textContent = sub
+
+    document.getElementById('last-score').textContent     = score
+    document.getElementById('last-score').style.color     = color
+    document.getElementById('last-score-sub').textContent = verdict
+
+    // Pulse on new signal
+    const container = document.getElementById('dial-container')
+    container.classList.remove('pulse')
+    void container.offsetWidth
+    container.classList.add('pulse')
+  }
+
+  // ── FACTORS UPDATE ────────────────────────────────────────────────────────────
+  function updateFactors(signal) {
+    const data = instrumentMinimums(signal.ticker)
+    const adx  = parseFloat(signal.adx)      || 0
+    const vol  = parseFloat(signal.vol_ratio) || 0
+    const trend = signal.trend || ''
+    const session = signal.session || ''
+
+    const htfAligned = trend === 'BULL' && signal.action === 'BUY' || trend === 'BEAR' && signal.action === 'SELL'
+    const adxOk   = adx >= data.minADX
+    const volOk   = vol >= data.minVol
+    const sessOk  = session === 'LONDON' || session === 'NY'
+
+    const scores = {
+      htf:   htfAligned ? 25 : 0,
+      adx:   adxOk      ? 20 : 0,
+      vol:   volOk      ? 15 : 0,
+      vwap:  10,  // assume ok if signal fired
+      sess:  sessOk     ? 10 : 0,
+      sweep: 0    // not in current data
+    }
+
+    const maxes = { htf:25, adx:20, vol:15, vwap:10, sess:10, sweep:20 }
+
+    Object.keys(scores).forEach(key => {
+      const fill = document.getElementById('f-' + key)
+      const pts  = document.getElementById('p-' + key)
+      if (fill) fill.style.width   = (scores[key] / maxes[key] * 100) + '%'
+      if (fill) fill.style.background = scores[key] > 0 ? 'var(--green)' : 'var(--gray)'
+      if (pts)  pts.textContent    = '+' + scores[key]
+      if (pts)  pts.style.color    = scores[key] > 0 ? 'var(--green)' : 'var(--dim)'
+    })
+
+    // Status cards
+    document.getElementById('sc-session').textContent = session || '--'
+    document.getElementById('sc-session').style.color = sessOk ? 'var(--green)' : 'var(--red)'
+    document.getElementById('sc-adx').textContent     = adx ? adx.toFixed(1) : '--'
+    document.getElementById('sc-adx').style.color     = adxOk ? 'var(--green)' : 'var(--red)'
+    document.getElementById('sc-vol').textContent     = vol ? vol.toFixed(2) : '--'
+    document.getElementById('sc-vol').style.color     = volOk ? 'var(--green)' : 'var(--red)'
+    document.getElementById('sc-trend').textContent   = trend || '--'
+    document.getElementById('sc-trend').style.color   = htfAligned ? 'var(--green)' : 'var(--yellow)'
+  }
+
+  function instrumentMinimums(ticker) {
+    if (!ticker) return { minADX:25, minVol:1.5 }
+    if (ticker.includes('MGC')) return { minADX:22, minVol:1.3 }
+    if (ticker.includes('MCL')) return { minADX:28, minVol:1.8 }
+    return { minADX:25, minVol:1.5 }
+  }
+
+  // ── FETCH LATEST SIGNAL ───────────────────────────────────────────────────────
+  async function fetchLatestSignal() {
+    try {
+      const res  = await fetch(SERVER + '/latest_signal')
+      const data = await res.json()
+
+      if (data.status === 'no_signals') return
+
+      const score = data.score ? Math.round(data.score) : estimateScore(data)
+
+      updateDial(score, data.ticker, data.action)
+      updateFactors(data)
+
+      // Ticker display
+      const dir = data.action === 'BUY' ? '▲ LONG' : '▼ SHORT'
+      const dirColor = data.action === 'BUY' ? 'var(--green)' : 'var(--red)'
+
+      document.getElementById('tk-ticker').textContent    = data.ticker || '--'
+      document.getElementById('tk-direction').textContent = dir
+      document.getElementById('tk-direction').style.color = dirColor
+      document.getElementById('tk-price').textContent     = data.price ? data.price.toFixed(2) : '--'
+      document.getElementById('tk-stop').textContent      = data.stop   ? data.stop.toFixed(2)   : '--'
+      document.getElementById('tk-target').textContent    = data.target ? data.target.toFixed(2) : '--'
+      document.getElementById('tk-be').textContent        = data.be_level      ? data.be_level.toFixed(2)      : '--'
+      document.getElementById('tk-partial').textContent   = data.partial_level ? data.partial_level.toFixed(2) : '--'
+
+      const t = new Date(data.received_at + 'Z')
+      document.getElementById('tk-time').textContent = t.toLocaleTimeString('en-US', { hour12:false, timeZone:'America/Chicago' }) + ' CT'
+
+      document.getElementById('last-refresh').textContent = 'UPDATED ' + new Date().toLocaleTimeString('en-US', { hour12:false, timeZone:'America/Chicago' })
+
+    } catch(e) {
+      console.log('Fetch error:', e)
+    }
+  }
+
+  function estimateScore(data) {
+    // Estimate score from raw signal data if V9 score not present
+    let s = 0
+    const adx = parseFloat(data.adx) || 0
+    const vol = parseFloat(data.vol_ratio) || 0
+    const mins = instrumentMinimums(data.ticker)
+    if (adx >= mins.minADX) s += 20
+    if (vol >= mins.minVol) s += 15
+    const trend = data.trend || ''
+    const action = data.action || ''
+    if ((trend === 'BULL' && action === 'BUY') || (trend === 'BEAR' && action === 'SELL')) s += 25
+    s += 10  // assume vwap ok
+    const sess = data.session || ''
+    if (sess === 'LONDON' || sess === 'NY') s += 10
+    return Math.min(100, s)
+  }
+
+  // ── FETCH ANALYTICS ───────────────────────────────────────────────────────────
+  async function fetchAnalytics() {
+    try {
+      const res  = await fetch(SERVER + '/analytics?days=30')
+      const data = await res.json()
+      const s    = data.summary
+
+      const wr = s.win_rate ? s.win_rate.toFixed(1) + '%' : '--'
+      document.getElementById('wr-overall').textContent = wr
+      document.getElementById('wr-overall').style.color = s.win_rate >= 60 ? 'var(--green)' : s.win_rate >= 50 ? 'var(--yellow)' : 'var(--red)'
+      document.getElementById('wr-sub').textContent     = s.total_trades + ' trades (30d)'
+
+      const pnl = s.total_pnl
+      document.getElementById('pnl-total').textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2)
+      document.getElementById('pnl-total').style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)'
+      document.getElementById('pnl-sub').textContent   = (s.avg_pnl >= 0 ? '+' : '') + '$' + Math.abs(s.avg_pnl || 0).toFixed(2) + ' avg'
+
+      document.getElementById('open-trades').textContent = s.open_trades || '0'
+
+      // Instrument stats
+      const bt = data.by_ticker || {}
+      const instruments = ['MES','MNQ','MGC','MCL']
+      instruments.forEach(inst => {
+        const keys = Object.keys(bt).filter(k => k.toUpperCase().includes(inst))
+        const trades = keys.flatMap(k => [bt[k]])
+        if (trades.length && trades[0]) {
+          const wr = trades[0].win_rate ? trades[0].win_rate.toFixed(1) + '%' : '--'
+          const el = document.getElementById('stat-' + inst.toLowerCase())
+          if (el) {
+            el.textContent  = wr
+            el.style.color  = inst === 'MCL' ? 'var(--red)' : trades[0].win_rate >= 60 ? 'var(--green)' : 'var(--yellow)'
+          }
+        }
+      })
+
+    } catch(e) { console.log('Analytics error:', e) }
+  }
+
+  // ── FETCH HISTORY ─────────────────────────────────────────────────────────────
+  async function fetchHistory() {
+    try {
+      const res  = await fetch(SERVER + '/signal_history?limit=25')
+      allHistory = await res.json()
+      renderHistory()
+    } catch(e) { console.log('History error:', e) }
+  }
+
+  function filterHistory(inst) {
+    currentFilter = inst
+    document.querySelectorAll('.inst-tab').forEach(t => t.classList.remove('active'))
+    document.getElementById('tab-' + inst).classList.add('active')
+    renderHistory()
+  }
+
+  function renderHistory() {
+    const filtered = currentFilter === 'ALL'
+      ? allHistory
+      : allHistory.filter(s => (s.ticker || '').toUpperCase().includes(currentFilter))
+
+    const tbody = document.getElementById('history-body')
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--dim);padding:12px;text-align:center;">No signals</td></tr>'
+      return
+    }
+
+    tbody.innerHTML = filtered.slice(0, 20).map(s => {
+      const t = new Date(s.received_at + 'Z')
+      const time = t.toLocaleTimeString('en-US', { hour12:false, timeZone:'America/Chicago', hour:'2-digit', minute:'2-digit' })
+      const score = s.score ? Math.round(s.score) : '--'
+      const scoreColor = score >= 70 ? 'var(--green)' : score >= 50 ? 'var(--yellow)' : 'var(--red)'
+      const dir = s.action === 'BUY' ? '<span style="color:var(--green)">▲</span>' : '<span style="color:var(--red)">▼</span>'
+      const adx = s.adx ? parseFloat(s.adx).toFixed(0) : '--'
+      const vol = s.vol_ratio ? parseFloat(s.vol_ratio).toFixed(2) : '--'
+
+      let resultBadge = '<span style="color:var(--dim)">OPEN</span>'
+      if (s.result === 'WIN')  resultBadge = '<span class="badge bg">WIN</span>'
+      if (s.result === 'LOSS') resultBadge = '<span class="badge br">LOSS</span>'
+
+      return `<tr>
+        <td style="color:var(--dim)">${time}</td>
+        <td style="color:var(--bright)">${(s.ticker||'--').replace('1!','1')}</td>
+        <td>${dir}</td>
+        <td style="color:${scoreColor};font-weight:600">${score}</td>
+        <td style="color:${parseFloat(adx)>=25?'var(--green)':'var(--red)'}">${adx}</td>
+        <td style="color:${parseFloat(vol)>=1.5?'var(--green)':'var(--red)'}">${vol}</td>
+        <td>${resultBadge}</td>
+      </tr>`
+    }).join('')
+  }
+
+  // ── REFRESH PROGRESS BAR ──────────────────────────────────────────────────────
+  let refreshStart = Date.now()
+  function animateRefreshBar() {
+    const elapsed = Date.now() - refreshStart
+    const pct     = Math.min(100, (elapsed / REFRESH_INTERVAL) * 100)
+    document.getElementById('refresh-bar').style.width = pct + '%'
+    if (pct < 100) requestAnimationFrame(animateRefreshBar)
+  }
+
+  // ── MAIN FETCH LOOP ───────────────────────────────────────────────────────────
+  async function fetchAll() {
+    refreshStart = Date.now()
+    requestAnimationFrame(animateRefreshBar)
+    await Promise.all([fetchLatestSignal(), fetchAnalytics(), fetchHistory()])
+  }
+
+  // Init
+  updateClock()
+  setInterval(updateClock, 1000)
+  fetchAll()
+  setInterval(fetchAll, REFRESH_INTERVAL)
+</script>
+</body>
+</html>
