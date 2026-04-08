@@ -22,6 +22,10 @@ def index():
 def dashboard():
     return app.send_static_file('dashboard.html')
 
+@app.route('/dial')
+def dial():
+    return app.send_static_file('dial.html')
+
 DB_PATH = os.environ.get('DB_PATH', 'apex_trades.db')
 
 def get_db():
