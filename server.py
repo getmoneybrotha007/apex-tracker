@@ -22,10 +22,6 @@ def index():
 def dashboard():
     return app.send_static_file('dashboard.html')
 
-@app.route('/dial')
-def dial():
-    return app.send_static_file('dial.html')
-
 DB_PATH = os.environ.get('DB_PATH', 'apex_trades.db')
 
 def get_db():
@@ -438,13 +434,22 @@ def get_alerts():
     conn.close()
     return jsonify(alerts)
 
-@app.route('/delete_trade/<int:trade_id>', methods=['DELETE', 'POST'])
+@app.route('/delete_trade/<int:trade_id>', methods=['DELETE', 'POST', 'GET'])
 def delete_trade(trade_id):
     conn = get_db()
     conn.execute('DELETE FROM trades WHERE id = ?', (trade_id,))
     conn.commit()
     conn.close()
     return jsonify({'status': 'ok', 'deleted': trade_id})
+
+@app.route('/delete_by_ticker/<ticker>', methods=['GET', 'POST'])
+def delete_by_ticker(ticker):
+    conn = get_db()
+    count = conn.execute("SELECT COUNT(*) FROM trades WHERE ticker LIKE ?", (f'%{ticker}%',)).fetchone()[0]
+    conn.execute("DELETE FROM trades WHERE ticker LIKE ?", (f'%{ticker}%',))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok', 'ticker': ticker, 'deleted': count})
 
 @app.route('/clear_open_trades', methods=['DELETE', 'POST'])
 def clear_open_trades():
@@ -467,126 +472,6 @@ def clear_all_trades():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'running', 'time': datetime.utcnow().isoformat()})
-
-@app.route('/latest_signal', methods=['GET'])
-def latest_signal():
-    """Get the most recent signal for the dial — includes all V9 fields"""
-    conn = get_db()
-    # Get latest alert with full data
-    latest = conn.execute('''
-        SELECT a.*, t.direction, t.entry_price, t.stop_price, t.target_price,
-               t.result, t.pnl, t.hold_minutes
-        FROM alerts a
-        LEFT JOIN trades t ON t.entry_alert_id = a.id
-        WHERE a.action IN ('BUY', 'SELL')
-        ORDER BY a.received_at DESC LIMIT 1
-    ''').fetchone()
-
-    if not latest:
-        conn.close()
-        return jsonify({'status': 'no_signals'})
-
-    # Parse raw message for V9 fields
-    raw = latest['raw_message'] or ''
-    import re, json as _json
-
-    def extract_field(field, text):
-        m = re.search(rf'"{field}"\s*:\s*([0-9.]+)', text)
-        return float(m.group(1)) if m else None
-
-    def extract_str_field(field, text):
-        m = re.search(rf'"{field}"\s*:\s*"([^"]+)"', text)
-        return m.group(1) if m else None
-
-    # Try to parse raw JSON for V9 fields
-    try:
-        raw_data = _json.loads(raw)
-    except:
-        raw_data = {}
-
-    adx       = raw_data.get('adx')       or extract_field('adx', raw)
-    vol_ratio = raw_data.get('vol_ratio') or extract_field('vol_ratio', raw)
-    score     = raw_data.get('score')     or extract_field('score', raw)
-    session   = raw_data.get('session')   or extract_str_field('session', raw)
-    trend     = raw_data.get('trend')     or extract_str_field('trend', raw)
-    be_level  = raw_data.get('be_level')  or extract_field('be_level', raw)
-    partial   = raw_data.get('partial_level') or extract_field('partial_level', raw)
-    qty       = raw_data.get('qty')       or extract_field('qty', raw)
-
-    signal = {
-        'ticker':        latest['ticker'],
-        'action':        latest['action'],
-        'price':         latest['price'],
-        'stop':          latest['stop_price'] if 'stop_price' in latest.keys() else extract_field('stop', raw),
-        'target':        latest['target_price'] if 'target_price' in latest.keys() else extract_field('target', raw),
-        'atr':           latest['atr'],
-        'rsi':           latest['rsi'],
-        'adx':           adx,
-        'vol_ratio':     vol_ratio,
-        'score':         score,
-        'session':       session,
-        'trend':         trend,
-        'be_level':      be_level,
-        'partial_level': partial,
-        'qty':           qty or 3,
-        'received_at':   latest['received_at'],
-        'result':        latest['result'],
-        'pnl':           latest['pnl'],
-    }
-
-    conn.close()
-    return jsonify(signal)
-
-@app.route('/signal_history', methods=['GET'])
-def signal_history():
-    """Get recent signals for the dial log — last 20"""
-    conn = get_db()
-    limit = int(request.args.get('limit', 20))
-    rows = conn.execute('''
-        SELECT a.received_at, a.ticker, a.action, a.price, a.atr, a.rsi, a.raw_message,
-               t.result, t.pnl, t.direction, t.stop_price, t.target_price
-        FROM alerts a
-        LEFT JOIN trades t ON t.entry_alert_id = a.id
-        WHERE a.action IN ('BUY', 'SELL')
-        ORDER BY a.received_at DESC
-        LIMIT ?
-    ''', (limit,)).fetchall()
-
-    import re, json as _json
-
-    signals = []
-    for row in rows:
-        raw = row['raw_message'] or ''
-        try:
-            raw_data = _json.loads(raw)
-        except:
-            raw_data = {}
-
-        def extract_field(field, text):
-            m = re.search(rf'"{field}"\s*:\s*([0-9.]+)', text)
-            return float(m.group(1)) if m else None
-
-        def extract_str_field(field, text):
-            m = re.search(rf'"{field}"\s*:\s*"([^"]+)"', text)
-            return m.group(1) if m else None
-
-        signals.append({
-            'received_at': row['received_at'],
-            'ticker':      row['ticker'],
-            'action':      row['action'],
-            'price':       row['price'],
-            'adx':         raw_data.get('adx') or extract_field('adx', raw),
-            'vol_ratio':   raw_data.get('vol_ratio') or extract_field('vol_ratio', raw),
-            'score':       raw_data.get('score') or extract_field('score', raw),
-            'session':     raw_data.get('session') or extract_str_field('session', raw),
-            'trend':       raw_data.get('trend') or extract_str_field('trend', raw),
-            'result':      row['result'],
-            'pnl':         row['pnl'],
-            'direction':   row['direction'],
-        })
-
-    conn.close()
-    return jsonify(signals)
 
 if __name__ == '__main__':
     init_db()
